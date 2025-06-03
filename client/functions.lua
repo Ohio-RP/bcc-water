@@ -1,5 +1,9 @@
 local CanUseCanteen = true
 local IsSick = false
+-- Variável para controlar o processo de enchimento
+local WagonFillInProgress = false
+local WagonFillInfo = nil
+
 
 local function LoadAnim(animDict)
     DebugPrint('Loading animation dictionary: ' .. animDict)
@@ -425,7 +429,8 @@ function PlayerStats(isWild)
         [9] = function() exports['fx-hud']:setStatus('thirst', thirst) end,
         [10] = function() local ClientAPI = exports['mega_metabolism']:api() ClientAPI.addMeta('water', thirst) end,
         [11] = function() exports['POS-Metabolism']:UpdateMultipleStatus({ ["water"] = thirst, ["piss"] = thirst * 0.5 }) end,
-        [12] = function() exports.bln_hud:SetThirst(thirst)
+        [12] = function() exports.bln_hud:SetThirst(thirst) end,
+       -- [13] = function() exports.bln_hud:SetThirst(thirst) end,
     }
 
     local function updateAttribute(attributeIndex, value, maxValue)
@@ -454,4 +459,186 @@ function PlayerStats(isWild)
         DebugPrint('Check Config.app setting for correct metabolism value')
     end
     DebugPrint('Player stats updated successfully.')
+end
+
+
+
+function CheckAndFillWagon(isPump)
+    DebugPrint('Checking for nearby water wagon...')
+    
+    if WagonFillInProgress then
+        DebugPrint('Wagon fill already in progress.')
+        return
+    end
+    
+    -- Verificar se há carroça próxima
+    local isNear, wagonInfo = exports['redm_waterwagon']:isNearWaterWagon(Config.waterWagon.checkDistance)
+    
+    if not isNear then
+        TriggerEvent("bln_notify:send", {
+            title = _U('waterPump'),
+            description = _U('noWagonNearby'),
+            placement = "middle-right",
+            duration = 4000
+        }, "ERROR")
+        return
+    end
+    
+    -- Verificar se a carroça está cheia
+    if wagonInfo.waterLevel >= wagonInfo.maxCapacity then
+        TriggerEvent("bln_notify:send", {
+            title = _U('waterPump'),
+            description = _U('wagonFull'),
+            placement = "middle-right",
+            duration = 4000
+        }, "INFO")
+        return
+    end
+    
+    -- Calcular unidades necessárias e custo
+    local unitsNeeded = wagonInfo.maxCapacity - wagonInfo.waterLevel
+    local totalCost = unitsNeeded * Config.waterWagon.pricePerUnit
+    local formattedCost = string.format("%.2f", totalCost)
+    DebugPrint(string.format('Wagon needs %d units, total cost: $%.2f', unitsNeeded, totalCost))
+    
+    -- Exibir confirmação com BLN Notify
+    WagonFillInProgress = true
+    
+    TriggerEvent("bln_notify:send", {
+        title = _U('confirmFillTitle'),
+        DebugPrint("Tradução retornada: " .. _U('confirmFillTitle')),
+         -- Formata o número com duas casas decimais
+        description =  formattedCost .. _U('confirmFillDesc'), -- Substitui %s pela string formatada
+        DebugPrint("Tradução retornada: " .. _U('confirmFillDesc')),
+        icon = "leaderboard_cash",
+        placement = "middle-center",
+        duration = 5000,
+        keyActions = {
+            ['E'] = "accept_wagon_fill",
+            ['X'] = "decline_wagon_fill"
+        }
+    })
+    
+    -- Salvar informações para uso posterior
+    WagonFillInfo = {
+        networkId = wagonInfo.networkId,
+        unitsNeeded = unitsNeeded,
+        totalCost = totalCost,
+        isPump = isPump
+    }
+end
+
+-- Registrar listener para as ações do BLN Notify
+RegisterNetEvent("bln_notify:keyPressed")
+AddEventHandler("bln_notify:keyPressed", function(action)
+    if action == "accept_wagon_fill" and WagonFillInfo then
+        DebugPrint('Player accepted wagon fill charge')
+        
+        -- Verificar dinheiro no servidor
+        Core.Callback.TriggerAsync('bcc-water:CheckAndChargeMoney', function(success)
+            if success then
+                FillWagon(WagonFillInfo.isPump, WagonFillInfo.networkId, WagonFillInfo.unitsNeeded)
+            else
+                TriggerEvent("bln_notify:send", {
+                    title = _U('waterPump'),
+                    description = _U('notEnoughMoney'),
+                    placement = "middle-right",
+                    duration = 4000
+                }, "ERROR")
+            end
+            
+            WagonFillInProgress = false
+            WagonFillInfo = nil
+        end, WagonFillInfo.totalCost)
+        
+    elseif action == "decline_wagon_fill" then
+        DebugPrint('Player declined wagon fill charge')
+        
+        TriggerEvent("bln_notify:send", {
+            title = _U('waterPump'),
+            description = _U('canceledFilling'),
+            placement = "middle-right",
+            duration = 3000
+        }, "INFO")
+        
+        WagonFillInProgress = false
+        WagonFillInfo = nil
+    end
+end)
+
+function FillWagon(pumpAnim, networkId, unitsToFill)
+    DebugPrint('Filling water wagon...')
+    Filling = true
+    local playerPed = PlayerPedId()
+    HidePedWeapons(playerPed, 2, true)
+    
+    -- Mostrar notificação de progresso
+    TriggerEvent("bln_notify:send", {
+        title = _U('waterPump'),
+        description = _U('wagonFillingProgress') .. " " .. unitsToFill,
+        placement = "bottom-right",
+        duration = Config.waterWagon.fillAnimationTime,
+        progress = {
+            enabled = true,
+            type = 'bar',
+            color = '#3b82f6'
+        }
+    })
+    
+    if not pumpAnim then
+        -- Animação para águas selvagens
+        local animDict = 'amb_work@world_human_bucket_fill@male_a@idle_a'
+        local animName = 'idle_a'
+        
+        LoadAnim(animDict)
+        TaskPlayAnim(playerPed, animDict, animName, 1.0, 1.0, Config.waterWagon.fillAnimationTime, 1, 0.0, false, false, false)
+        Wait(Config.waterWagon.fillAnimationTime)
+        ClearPedTasks(playerPed)
+    else
+        -- Animação para bombas d'água
+        local taskRun = false
+        local DataStruct = DataView.ArrayBuffer(256 * 4)
+        local pointsExist = GetScenarioPointsInArea(PlayerCoords, 2.0, DataStruct:Buffer(), 10)
+        
+        if pointsExist then
+            for i = 1, 1 do
+                local scenario = DataStruct:GetInt32(8 * i)
+                local hash = GetScenarioPointType(scenario)
+                
+                if hash == joaat('PROP_HUMAN_PUMP_WATER') then
+                    taskRun = true
+                    ClearPedTasksImmediately(playerPed)
+                    TaskUseScenarioPoint(playerPed, scenario, '', -1.0, true, false, 0, false, -1.0, true)
+                    Wait(Config.waterWagon.fillAnimationTime)
+                    break
+                end
+            end
+        end
+        
+        if not taskRun then
+            -- Fallback para animação manual da bomba
+            local animDict = 'amb_work@prop_human_pump_water@female_b@idle_a'
+            local animName = 'idle_a'
+            if IsPedMale(playerPed) then
+                animDict = 'amb_work@prop_human_pump_water@male_a@idle_a'
+            end
+            PlayAnim(animDict, animName, 1, Config.waterWagon.fillAnimationTime)
+        end
+    end
+    
+    -- Atualizar carroça no servidor
+    TriggerServerEvent('bcc-water:FillWagon', networkId, unitsToFill)
+    
+    ClearPedTasks(playerPed)
+    Filling = false
+    
+    -- Notificação de sucesso
+    TriggerEvent("bln_notify:send", {
+        title = _U('waterPump'),
+        description = _U('wagonFilledSuccess'),
+        placement = "middle-right",
+        duration = 4000
+    }, "SUCCESS")
+    
+    DebugPrint('Water wagon filled successfully.')
 end

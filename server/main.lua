@@ -268,4 +268,61 @@ if Config.useable.antidoteItem then
     end)
 end
 
+-- Callback para verificar e cobrar dinheiro
+Core.Callback.Register('bcc-water:CheckAndChargeMoney', function(source, cb, amount)
+    local src = source
+    local user = Core.getUser(src)
+    
+    if not user then
+        DebugPrint('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+    
+    local character = user.getUsedCharacter
+    local playerMoney = character.money
+    
+    DebugPrint(string.format('Checking money for source %d: has $%.2f, needs $%.2f', src, playerMoney, amount))
+    
+    if playerMoney >= amount then
+        -- Remover dinheiro
+        character.removeCurrency(0, amount)
+        DebugPrint(string.format('Charged $%.2f from source %d for water wagon', amount, src))
+        cb(true)
+    else
+        cb(false)
+    end
+end)
+
+-- Event para encher a carroça
+RegisterNetEvent('bcc-water:FillWagon')
+AddEventHandler('bcc-water:FillWagon', function(networkId, unitsToFill)
+    local src = source
+    
+    DebugPrint(string.format('Filling wagon %d with %d units for source %d', networkId, unitsToFill, src))
+    
+    -- Usar export do redm_waterwagon para adicionar água
+    local success, result = exports['redm_waterwagon']:addWagonWater(networkId, unitsToFill)
+    
+    if success then
+        DebugPrint(string.format('Successfully filled wagon %d. New water level: %d', networkId, result))
+    else
+        DebugPrint('Failed to fill wagon: ' .. tostring(result))
+        
+        -- Reembolsar o jogador se falhar
+        local user = Core.getUser(src)
+        if user then
+            local character = user.getUsedCharacter
+            local refund = unitsToFill * Config.waterWagon.pricePerUnit
+            character.addCurrency(0, refund)
+            
+            TriggerClientEvent("bln_notify:send", src, {
+                title = "Water System",
+                description = "Failed to fill wagon. You have been refunded.",
+                placement = "middle-right",
+                duration = 4000
+            }, "ERROR")
+        end
+    end
+end)
+
 BccUtils.Versioner.checkFile(GetCurrentResourceName(), 'https://github.com/BryceCanyonCounty/bcc-water')

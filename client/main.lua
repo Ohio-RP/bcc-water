@@ -38,6 +38,13 @@ local function StartPrompts()
     Prompts.FillBottlePrompt = CreatePrompt(Config.keys.fillBottle.code, 'fillBottle', { WaterGroup, PumpGroup })
     Prompts.WashPrompt = CreatePrompt(Config.keys.wash.code, 'wash', { WaterGroup, PumpGroup })
     Prompts.DrinkPrompt = CreatePrompt(Config.keys.drink.code, 'drink', { WaterGroup, PumpGroup })
+    
+    -- Adicionar prompt para carroça se ativo
+    if Config.waterWagon and Config.waterWagon.active then
+        Prompts.FillWagonPrompt = CreatePrompt(Config.keys.fillWagon.code, 'fillWagon', { WaterGroup, PumpGroup })
+        DebugPrint("Carroça no Group")
+    end
+    
     DebugPrint('Prompts started successfully.')
 end
 
@@ -119,10 +126,10 @@ CreateThread(function()
                 TriggerEvent('bcc-water:PumpWater')
             end
 
-            if Config.wild.active then
-                DebugPrint('Triggering WildWater event for development.')
-                TriggerEvent('bcc-water:WildWater')
-            end
+            -- if Config.wild.active then
+            --     DebugPrint('Triggering WildWater event for development.')
+            --     TriggerEvent('bcc-water:WildWater')
+            -- end
 
             DebugPrint('Checking server for player sickness.')
             local isSick = Core.Callback.TriggerAwait('bcc-water:CheckSickness')
@@ -208,8 +215,26 @@ AddEventHandler('bcc-water:PumpWater', function()
         {configKey = 'bucket',  prompt = 'FillBucketPrompt', func = ManageItems, param = {'bucket', true}, fullKey = 'fillBucket', offset = 0.1},
         {configKey = 'bottle',  prompt = 'FillBottlePrompt', func = ManageItems, param = {'bottle', true}, fullKey = 'fillBottle', offset = 0},
         {configKey = 'wash',    prompt = 'WashPrompt', func = WashPlayer, param = {'stand'}, fullKey = 'wash', offset = 0.3},
-        {configKey = 'drink',   prompt = 'DrinkPrompt', func = PumpDrink, param = {}, fullKey = 'drink', offset = 0.4}
+        {configKey = 'drink',   prompt = 'DrinkPrompt', func = PumpDrink, param = {}, fullKey = 'drink', offset = 0.6}
     }
+    
+    -- Adicionar ação da carroça se ativa
+    if Config.waterWagon and Config.waterWagon.active and Config.waterWagon.fillWagon then
+        table.insert(pumpActions, {
+            configKey = 'fillWagon', 
+            prompt = 'FillWagonPrompt', 
+            func = CheckAndFillWagon, 
+            param = {true}, 
+            fullKey = 'fillWagon', 
+            offset = 0.4
+        })
+       DebugPrint("Carroça Ativa")
+       for i, action in ipairs(pumpActions) do
+        DebugPrint(string.format("Action %d: configKey=%s, prompt=%s, fullKey=%s, offset=%f", 
+            i, action.configKey, action.prompt, action.fullKey, action.offset))
+        end
+
+    end
 
     HandleWaterInteraction(
         Config.pump,

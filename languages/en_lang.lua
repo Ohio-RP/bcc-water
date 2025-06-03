@@ -22,4 +22,16 @@ Locales["en_lang"] = {
     feelingSick = "You're feeling sick from the water...",
     feelingBetter = "You're feeling better now.",
     succumbed = "You've succumbed to the sickness...",
+    fillWagon = "Fill Water Wagon",
+    wagonFilling = "Filling water wagon...",
+    wagonFull = "The wagon is already full!",
+    noWagonNearby = "No water wagon nearby!",
+    confirmFillTitle = "Water Wagon Service",
+    confirmFillDesc = " is the cost to Fill you wagon, do you want to accept? Press ~key:E~ to accept or ~key:X~ to decline",
+    declineCharge = "Decline",
+    notEnoughMoney = "You don't have enough money!",
+    wagonFilledSuccess = "Water wagon filled successfully!",
+    wagonFillingProgress = "Units filling: ",
+    canceledFilling = "Filling canceled.",
+    
 }

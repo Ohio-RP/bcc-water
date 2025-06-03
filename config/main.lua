@@ -4,7 +4,7 @@ Config = {
     ---------------------------------------------------------------
 
     devMode = {
-        active  = false,      -- When active, you can restart the script while connected for testing (otherwise requires relog)
+        active  = true,      -- When active, you can restart the script while connected for testing (otherwise requires relog)
         command = 'WaterDev', -- Command to start the script functions
     },
     ---------------------------------------------------------------
@@ -21,15 +21,16 @@ Config = {
     -- Mega Metabolism              = 10
     -- POS-Metabolism Paid          = 11
     -- BLN HUD                      = 12
-    app = 1,
+    app = 13,
     ---------------------------------------------------------------
 
     keys = {
-        drink       = { code = 0x760A9C6F, char = 'G' }, -- Drink at Water Pumps and Wild Waters
+        drink       = { code = 0xF3830D8E, char = 'J' }, -- Drink at Water Pumps and Wild Waters
         wash        = { code = 0x80F28E95, char = 'L' }, -- Wash Player at Water Pumps and Wild Waters
         fillBucket  = { code = 0xCEFD9220, char = 'E' }, -- Fill Bucket at Water Pumps and Wild Waters
         fillBottle  = { code = 0xD3ECF82F, char = 'B' }, -- Fill Bottle at Water Pumps and Wild Waters
-        fillCanteen = { code = 0x27D1C284, char = 'R' }  -- Fill Canteen at Water Pumps and Wild Waters
+        fillCanteen = { code = 0x27D1C284, char = 'R' },  -- Fill Canteen at Water Pumps and Wild Waters
+        fillWagon = { code = 0x760A9C6F, char = 'G' }
     },
     ---------------------------------------------------------------
 
@@ -40,33 +41,42 @@ Config = {
         bucket  = true,       -- Allow to Fill Bucket
         bottle  = true,       -- Allow to Fill Bottle
         wash    = true,       -- Allow Player to Wash
-        drink   = true,       -- Allow Player to Drink
+        drink   = false,       -- Allow Player to Drink
+        fillWagon = true,       -- Allow to Fill Water Wagon
         multi   = {
             bottles = true,   -- Allow to Fill Multiple Bottles at Once
             bottleAmount = 5, -- Maximum Amount of Bottles to Fill at Once
             buckets = true,   -- Allow to Fill Multiple Buckets at Once
             bucketAmount = 5  -- Maximum Amount of Buckets to Fill at Once
-        }
+        },
+        
     },
     ---------------------------------------------------------------
+    waterWagon = {
+        active = true,              -- Enable Water Wagon System
+        pricePerUnit = 0.10,       -- Price per unit of water
+        checkDistance = 5.0,       -- Distance to detect water wagon
+        fillWagon = true,          -- Allow to fill water wagon
+        fillAnimationTime = 15000, -- Time in milliseconds for fill animation
+    },
 
     -- Manage Activities in Rivers and Lakes (Wild Waters)
     wild = {
-        active  = true,       -- Enable the Use of Wild Waters
-        canteen = true,       -- Allow to Fill Canteen
-        bucket  = true,       -- Allow to Fill Bucket
-        bottle  = true,       -- Allow to Fill Bottle
-        wash    = true,       -- Allow Player to Wash
-        drink   = true,       -- Allow Player to Drink
+        active  = false,       -- Enable the Use of Wild Waters
+        canteen = false,       -- Allow to Fill Canteen
+        bucket  = false,       -- Allow to Fill Bucket
+        bottle  = false,       -- Allow to Fill Bottle
+        wash    = false,       -- Allow Player to Wash
+        drink   = false,       -- Allow Player to Drink
         multi   = {
-            bottles = true,   -- Allow to Fill Multiple Bottles at Once
+            bottles = false,   -- Allow to Fill Multiple Bottles at Once
             bottleAmount = 5, -- Maximum Amount of Bottles to Fill at Once
             buckets = true,   -- Allow to Fill Multiple Buckets at Once
             bucketAmount = 5  -- Maximum Amount of Buckets to Fill at Once
         }
     },
     ---------------------------------------------------------------
-
+    
     -- Sickness from Drinking Wild Water (Player Dies if Duration or Health Reaches 0)
     sickness = {
         chance   = 25,  -- Range 1 - 100 (lower Number = lower Chance) / Set to 0 to Disable
